@@ -1,10 +1,10 @@
 import { Contact, useContacts } from "@/hooks/useContacts";
 import React, { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Button, FlatList, Modal, SafeAreaView, StyleSheet,
-  Switch,
-  Text,
-  TextInput, TouchableOpacity, View
+  Switch, Text, TextInput, TouchableOpacity, View
 } from "react-native";
 
 export default function ContactListScreen() {
@@ -18,6 +18,10 @@ export default function ContactListScreen() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
+  // Loading & error state cho import
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const openModal = (contact?: Contact) => {
     if (contact) {
@@ -47,7 +51,32 @@ export default function ContactListScreen() {
     setEmail("");
   };
 
-  // Lọc contacts dựa trên searchQuery và favorite
+  // Import contacts từ API
+  const importContacts = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("https://jsonplaceholder.typicode.com/users"); // thay API thực tế
+      if (!res.ok) throw new Error("Failed to fetch contacts");
+      const data: { name: string; phone: string; email: string }[] = await res.json();
+
+      let imported = 0;
+      data.forEach(c => {
+        // Kiểm tra trùng phone
+        if (c.phone && !contacts.some(existing => existing.phone === c.phone)) {
+          addContact(c.name, c.phone, c.email);
+          imported++;
+        }
+      });
+
+      Alert.alert("Import thành công", `Đã thêm ${imported} liên hệ mới.`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredContacts = useMemo(() => {
     return contacts.filter(c => {
       const matchesSearch =
@@ -71,13 +100,8 @@ export default function ContactListScreen() {
       </View>
 
       <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <TouchableOpacity
-          style={{ marginRight: 12 }}
-          onPress={() => toggleFavorite(item)}
-        >
-          <Text style={[styles.favorite, { color: item.favorite ? "#f5c518" : "#ccc" }]}>
-            ★
-          </Text>
+        <TouchableOpacity style={{ marginRight: 12 }} onPress={() => toggleFavorite(item)}>
+          <Text style={[styles.favorite, { color: item.favorite ? "#f5c518" : "#ccc" }]}>★</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -102,7 +126,6 @@ export default function ContactListScreen() {
       <View style={styles.container}>
         <Text style={styles.header}>Danh bạ</Text>
 
-        {/* Search Input */}
         <TextInput
           placeholder="Tìm kiếm theo tên hoặc số điện thoại..."
           style={styles.input}
@@ -110,14 +133,16 @@ export default function ContactListScreen() {
           onChangeText={setSearchQuery}
         />
 
-        {/* Filter favorite */}
         <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-          <Switch
-            value={showFavoritesOnly}
-            onValueChange={setShowFavoritesOnly}
-          />
+          <Switch value={showFavoritesOnly} onValueChange={setShowFavoritesOnly} />
           <Text style={{ marginLeft: 8 }}>Chỉ hiển thị yêu thích</Text>
         </View>
+
+        {/* Nút Import API */}
+        <Button title="Import từ API" onPress={importContacts} disabled={loading} />
+
+        {loading && <ActivityIndicator size="small" color="#007bff" style={{ marginTop: 8 }} />}
+        {error && <Text style={{ color: "red", marginTop: 8 }}>{error}</Text>}
 
         <TouchableOpacity style={styles.addButton} onPress={() => openModal()}>
           <Text style={styles.addButtonText}>＋</Text>
@@ -146,26 +171,9 @@ export default function ContactListScreen() {
                 {editingContact ? "Sửa liên hệ" : "Thêm liên hệ mới"}
               </Text>
 
-              <TextInput
-                placeholder="Tên"
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-              />
-              <TextInput
-                placeholder="Số điện thoại"
-                style={styles.input}
-                value={phone}
-                onChangeText={setPhone}
-                keyboardType="phone-pad"
-              />
-              <TextInput
-                placeholder="Email"
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-              />
+              <TextInput placeholder="Tên" style={styles.input} value={name} onChangeText={setName} />
+              <TextInput placeholder="Số điện thoại" style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+              <TextInput placeholder="Email" style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" />
 
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 10 }}>
                 <Button title="Hủy" onPress={() => setModalVisible(false)} />
