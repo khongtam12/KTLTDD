@@ -9,11 +9,11 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
 export default function ContactListScreen() {
-  const { contacts, addContact, editContact, toggleFavorite } = useContacts();
+  const { contacts, addContact, editContact, toggleFavorite, deleteContact } = useContacts();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
@@ -51,31 +51,44 @@ export default function ContactListScreen() {
   };
 
   const renderItem = ({ item }: { item: Contact }) => (
-    <View style={styles.item}>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.name}>{item.name}</Text>
-        {item.phone ? (
-          <Text style={styles.phone}>{item.phone}</Text>
-        ) : (
-          <Text style={styles.phoneEmpty}>Không có số điện thoại</Text>
-        )}
-        {item.email ? <Text style={styles.phone}>{item.email}</Text> : null}
-      </View>
-
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <TouchableOpacity
-          style={{ marginRight: 12 }}
-          onPress={() => toggleFavorite(item)}
-        >
-          <Text style={[styles.favorite, { color: item.favorite ? "#f5c518" : "#ccc" }]}>
-            ★
-          </Text>
-        </TouchableOpacity>
-
-        <Button title="Sửa" onPress={() => openModal(item)} />
-      </View>
+  <View style={styles.item}>
+    <View style={{ flex: 1 }}>
+      <Text style={styles.name}>{item.name}</Text>
+      {item.phone ? (
+        <Text style={styles.phone}>{item.phone}</Text>
+      ) : (
+        <Text style={styles.phoneEmpty}>Không có số điện thoại</Text>
+      )}
+      {item.email ? <Text style={styles.phone}>{item.email}</Text> : null}
     </View>
-  );
+
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <TouchableOpacity
+        style={{ marginRight: 12 }}
+        onPress={() => toggleFavorite(item)}
+      >
+        <Text style={[styles.favorite, { color: item.favorite ? "#f5c518" : "#ccc" }]}>
+          ★
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => openModal(item)}
+        style={{ marginRight: 8, padding: 6, backgroundColor: "#007bff", borderRadius: 5 }}
+      >
+        <Text style={{ color: "#fff" }}>Sửa</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => deleteContact(item)}
+        style={{ padding: 6, backgroundColor: "red", borderRadius: 5 }}
+      >
+        <Text style={{ color: "#fff" }}>Xóa</Text>
+      </TouchableOpacity>
+    </View>
+  </View>
+);
+
 
   return (
     <SafeAreaView style={{ flex: 1 }}>

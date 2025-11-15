@@ -65,25 +65,25 @@ export function useContacts() {
     loadContacts();
   }, [loadContacts]);
 
-//   // Xóa contact
-//   const deleteContact = useCallback((contact: Contact) => {
-//     Alert.alert(
-//       "Xác nhận",
-//       `Bạn có chắc muốn xóa "${contact.name}" không?`,
-//       [
-//         { text: "Hủy", style: "cancel" },
-//         {
-//           text: "Xóa",
-//           style: "destructive",
-//           onPress: () => {
-//             db.runSync("DELETE FROM contacts WHERE id = ?", [contact.id]);
-//             setContacts(prev => prev.filter(c => c.id !== contact.id));
-//           },
-//         },
-//       ],
-//       { cancelable: true }
-//     );
-//   }, []);
+  // Xóa contact
+  const deleteContact = useCallback((contact: Contact) => {
+    Alert.alert(
+      "Xác nhận",
+      `Bạn có chắc muốn xóa "${contact.name}" không?`,
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Xóa",
+          style: "destructive",
+          onPress: () => {
+            db.runSync("DELETE FROM contacts WHERE id = ?", [contact.id]);
+            setContacts(prev => prev.filter(c => c.id !== contact.id));
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  }, []);
 
   // Toggle favorite
   const toggleFavorite = useCallback((contact: Contact) => {
@@ -97,7 +97,7 @@ export function useContacts() {
     loadContacts,
     addContact,
     editContact,
-    // deleteContact,
+    deleteContact,
     toggleFavorite,
   };
 }
