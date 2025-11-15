@@ -1,15 +1,10 @@
 import { Contact, useContacts } from "@/hooks/useContacts";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  Button,
-  FlatList,
-  Modal,
-  SafeAreaView,
-  StyleSheet,
+  Button, FlatList, Modal, SafeAreaView, StyleSheet,
+  Switch,
   Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+  TextInput, TouchableOpacity, View
 } from "react-native";
 
 export default function ContactListScreen() {
@@ -21,7 +16,9 @@ export default function ContactListScreen() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
 
-  // Mở modal để thêm hoặc sửa
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
   const openModal = (contact?: Contact) => {
     if (contact) {
       setEditingContact(contact);
@@ -50,65 +47,93 @@ export default function ContactListScreen() {
     setEmail("");
   };
 
+  // Lọc contacts dựa trên searchQuery và favorite
+  const filteredContacts = useMemo(() => {
+    return contacts.filter(c => {
+      const matchesSearch =
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.phone.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesFavorite = !showFavoritesOnly || c.favorite === 1;
+      return matchesSearch && matchesFavorite;
+    });
+  }, [contacts, searchQuery, showFavoritesOnly]);
+
   const renderItem = ({ item }: { item: Contact }) => (
-  <View style={styles.item}>
-    <View style={{ flex: 1 }}>
-      <Text style={styles.name}>{item.name}</Text>
-      {item.phone ? (
-        <Text style={styles.phone}>{item.phone}</Text>
-      ) : (
-        <Text style={styles.phoneEmpty}>Không có số điện thoại</Text>
-      )}
-      {item.email ? <Text style={styles.phone}>{item.email}</Text> : null}
+    <View style={styles.item}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.name}>{item.name}</Text>
+        {item.phone ? (
+          <Text style={styles.phone}>{item.phone}</Text>
+        ) : (
+          <Text style={styles.phoneEmpty}>Không có số điện thoại</Text>
+        )}
+        {item.email ? <Text style={styles.phone}>{item.email}</Text> : null}
+      </View>
+
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <TouchableOpacity
+          style={{ marginRight: 12 }}
+          onPress={() => toggleFavorite(item)}
+        >
+          <Text style={[styles.favorite, { color: item.favorite ? "#f5c518" : "#ccc" }]}>
+            ★
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => openModal(item)}
+          style={{ marginRight: 8, padding: 6, backgroundColor: "#007bff", borderRadius: 5 }}
+        >
+          <Text style={{ color: "#fff" }}>Sửa</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => deleteContact(item)}
+          style={{ padding: 6, backgroundColor: "red", borderRadius: 5 }}
+        >
+          <Text style={{ color: "#fff" }}>Xóa</Text>
+        </TouchableOpacity>
+      </View>
     </View>
-
-    <View style={{ flexDirection: "row", alignItems: "center" }}>
-      <TouchableOpacity
-        style={{ marginRight: 12 }}
-        onPress={() => toggleFavorite(item)}
-      >
-        <Text style={[styles.favorite, { color: item.favorite ? "#f5c518" : "#ccc" }]}>
-          ★
-        </Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        onPress={() => openModal(item)}
-        style={{ marginRight: 8, padding: 6, backgroundColor: "#007bff", borderRadius: 5 }}
-      >
-        <Text style={{ color: "#fff" }}>Sửa</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        onPress={() => deleteContact(item)}
-        style={{ padding: 6, backgroundColor: "red", borderRadius: 5 }}
-      >
-        <Text style={{ color: "#fff" }}>Xóa</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-);
-
+  );
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
         <Text style={styles.header}>Danh bạ</Text>
 
+        {/* Search Input */}
+        <TextInput
+          placeholder="Tìm kiếm theo tên hoặc số điện thoại..."
+          style={styles.input}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+
+        {/* Filter favorite */}
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
+          <Switch
+            value={showFavoritesOnly}
+            onValueChange={setShowFavoritesOnly}
+          />
+          <Text style={{ marginLeft: 8 }}>Chỉ hiển thị yêu thích</Text>
+        </View>
+
         <TouchableOpacity style={styles.addButton} onPress={() => openModal()}>
           <Text style={styles.addButtonText}>＋</Text>
         </TouchableOpacity>
 
-        {contacts.length === 0 ? (
-          <Text style={styles.empty}>Chưa có liên hệ nào.</Text>
+        {filteredContacts.length === 0 ? (
+          <Text style={styles.empty}>Không tìm thấy liên hệ nào.</Text>
         ) : (
           <FlatList
-            data={contacts}
+            data={filteredContacts}
             keyExtractor={(item) => item.id.toString()}
             renderItem={renderItem}
           />
         )}
 
+        {/* Modal thêm/sửa */}
         <Modal
           visible={modalVisible}
           animationType="slide"
