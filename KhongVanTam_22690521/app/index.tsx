@@ -1,95 +1,137 @@
-import { Contact, addContact } from "@/hooks/useContacts";
-import { useEffect, useState } from "react";
-import { Alert, Button, FlatList, Modal, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import db, { initDB } from "../database/db";
+import { Contact, useContacts } from "@/hooks/useContacts";
+import React, { useState } from "react";
+import {
+  Button,
+  FlatList,
+  Modal,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from "react-native";
 
 export default function ContactListScreen() {
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [modalVisible, setModalVisible] = useState(false);
+  const { contacts, addContact, editContact, toggleFavorite } = useContacts();
 
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
 
-  const loadContacts = () => {
-    try {
-      const rows = db.getAllSync<Contact>("SELECT * FROM contacts ORDER BY id DESC;");
-      setContacts(rows);
-    } catch (err) {
-      console.error("Load contacts error:", err);
+  // Mở modal để thêm hoặc sửa
+  const openModal = (contact?: Contact) => {
+    if (contact) {
+      setEditingContact(contact);
+      setName(contact.name);
+      setPhone(contact.phone);
+      setEmail(contact.email);
+    } else {
+      setEditingContact(null);
+      setName("");
+      setPhone("");
+      setEmail("");
     }
+    setModalVisible(true);
   };
 
-  useEffect(() => {
-    initDB(); // Khởi tạo DB nếu chưa có bảng
-    loadContacts();
-  }, []);
-
-
-  // Thêm hàm toggle favorite
-const toggleFavorite = (contact: Contact) => {
-  const newFav = contact.favorite === 1 ? 0 : 1;
-  db.runSync("UPDATE contacts SET favorite = ? WHERE id = ?", [newFav, contact.id]);
-  // Cập nhật trực tiếp UI
-  setContacts(prev =>
-    prev.map(c => (c.id === contact.id ? { ...c, favorite: newFav } : c))
-  );
-};
-  const handleAddContact = () => {
-    if (!name.trim()) {
-      Alert.alert("Lỗi", "Tên liên hệ không được để trống!");
-      return;
+  const handleSave = () => {
+    if (editingContact) {
+      editContact(editingContact.id, name, phone, email);
+    } else {
+      addContact(name, phone, email);
     }
-    if (email && !email.includes("@")) {
-      Alert.alert("Lỗi", "Email không hợp lệ!");
-      return;
-    }
-    addContact(name, phone, email);
-    loadContacts();
     setModalVisible(false);
-    setName(""); setPhone(""); setEmail("");
+    setEditingContact(null);
+    setName("");
+    setPhone("");
+    setEmail("");
   };
 
   const renderItem = ({ item }: { item: Contact }) => (
-  <View style={styles.item}>
-    <View style={{ flex: 1 }}>
-      <Text style={styles.name}>{item.name}</Text>
-      {item.phone ? <Text style={styles.phone}>{item.phone}</Text> : <Text style={styles.phoneEmpty}>Không có số điện thoại</Text>}
-      {item.email ? <Text style={styles.phone}>{item.email}</Text> : null}
-    </View>
+    <View style={styles.item}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.name}>{item.name}</Text>
+        {item.phone ? (
+          <Text style={styles.phone}>{item.phone}</Text>
+        ) : (
+          <Text style={styles.phoneEmpty}>Không có số điện thoại</Text>
+        )}
+        {item.email ? <Text style={styles.phone}>{item.email}</Text> : null}
+      </View>
 
-    <TouchableOpacity onPress={() => toggleFavorite(item)}>
-      <Text style={[styles.favorite, { color: item.favorite ? "#f5c518" : "#ccc" }]}>★</Text>
-    </TouchableOpacity>
-  </View>
-);
+      <View style={{ flexDirection: "row", alignItems: "center" }}>
+        <TouchableOpacity
+          style={{ marginRight: 12 }}
+          onPress={() => toggleFavorite(item)}
+        >
+          <Text style={[styles.favorite, { color: item.favorite ? "#f5c518" : "#ccc" }]}>
+            ★
+          </Text>
+        </TouchableOpacity>
+
+        <Button title="Sửa" onPress={() => openModal(item)} />
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={styles.container}>
         <Text style={styles.header}>Danh bạ</Text>
 
-        <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
+        <TouchableOpacity style={styles.addButton} onPress={() => openModal()}>
           <Text style={styles.addButtonText}>＋</Text>
         </TouchableOpacity>
 
         {contacts.length === 0 ? (
           <Text style={styles.empty}>Chưa có liên hệ nào.</Text>
         ) : (
-          <FlatList data={contacts} keyExtractor={item => item.id.toString()} renderItem={renderItem} />
+          <FlatList
+            data={contacts}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderItem}
+          />
         )}
 
-        {/* Modal thêm contact */}
-        <Modal visible={modalVisible} animationType="slide" transparent={true} onRequestClose={() => setModalVisible(false)}>
+        <Modal
+          visible={modalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setModalVisible(false)}
+        >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalHeader}>Thêm liên hệ mới</Text>
-              <TextInput placeholder="Tên" style={styles.input} value={name} onChangeText={setName} />
-              <TextInput placeholder="Số điện thoại" style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-              <TextInput placeholder="Email" style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" />
+              <Text style={styles.modalHeader}>
+                {editingContact ? "Sửa liên hệ" : "Thêm liên hệ mới"}
+              </Text>
+
+              <TextInput
+                placeholder="Tên"
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+              />
+              <TextInput
+                placeholder="Số điện thoại"
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+              />
+              <TextInput
+                placeholder="Email"
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+              />
+
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 10 }}>
                 <Button title="Hủy" onPress={() => setModalVisible(false)} />
-                <Button title="Lưu" onPress={handleAddContact} />
+                <Button title="Lưu" onPress={handleSave} />
               </View>
             </View>
           </View>
