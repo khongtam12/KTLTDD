@@ -13,14 +13,17 @@ export interface Contact {
 
 export function useContacts() {
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load tất cả contact
+  // Load contacts
   const loadContacts = useCallback(() => {
     try {
       const rows = db.getAllSync<Contact>("SELECT * FROM contacts ORDER BY id DESC;");
       setContacts(rows);
     } catch (err) {
       console.error("Load contacts error:", err);
+      setError("Lỗi khi tải danh bạ");
     }
   }, []);
 
@@ -28,7 +31,7 @@ export function useContacts() {
     loadContacts();
   }, [loadContacts]);
 
-  // Thêm contact
+  // Add contact
   const addContact = useCallback((name: string, phone?: string, email?: string) => {
     if (!name.trim()) {
       Alert.alert("Lỗi", "Tên liên hệ không được để trống!");
@@ -47,7 +50,7 @@ export function useContacts() {
     loadContacts();
   }, [loadContacts]);
 
-  // Sửa contact
+  // Edit contact
   const editContact = useCallback((id: number, name: string, phone?: string, email?: string) => {
     if (!name.trim()) {
       Alert.alert("Lỗi", "Tên liên hệ không được để trống!");
@@ -57,7 +60,6 @@ export function useContacts() {
       Alert.alert("Lỗi", "Email không hợp lệ!");
       return;
     }
-
     db.runSync(
       "UPDATE contacts SET name = ?, phone = ?, email = ? WHERE id = ?",
       [name, phone || "", email || "", id]
@@ -65,7 +67,7 @@ export function useContacts() {
     loadContacts();
   }, [loadContacts]);
 
-  // Xóa contact
+  // Delete contact
   const deleteContact = useCallback((contact: Contact) => {
     Alert.alert(
       "Xác nhận",
@@ -92,6 +94,42 @@ export function useContacts() {
     setContacts(prev => prev.map(c => (c.id === contact.id ? { ...c, favorite: newFav } : c)));
   }, []);
 
+  // Import contacts từ API
+  const importContacts = useCallback(async (apiUrl: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(apiUrl);
+      if (!res.ok) throw new Error("Failed to fetch contacts");
+      const data: { name: string; phone: string; email: string }[] = await res.json();
+
+      let imported = 0;
+      data.forEach(c => {
+        if (c.phone && !contacts.some(existing => existing.phone === c.phone)) {
+          addContact(c.name, c.phone, c.email);
+          imported++;
+        }
+      });
+
+      Alert.alert("Import thành công", `Đã thêm ${imported} liên hệ mới.`);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [contacts, addContact]);
+
+  // Search contacts
+  const searchContacts = useCallback((query: string, favoritesOnly: boolean) => {
+    return contacts.filter(c => {
+      const matchesSearch =
+        c.name.toLowerCase().includes(query.toLowerCase()) ||
+        c.phone.toLowerCase().includes(query.toLowerCase());
+      const matchesFavorite = !favoritesOnly || c.favorite === 1;
+      return matchesSearch && matchesFavorite;
+    });
+  }, [contacts]);
+
   return {
     contacts,
     loadContacts,
@@ -99,5 +137,9 @@ export function useContacts() {
     editContact,
     deleteContact,
     toggleFavorite,
+    importContacts,
+    searchContacts,
+    loading,
+    error,
   };
 }

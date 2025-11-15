@@ -2,13 +2,30 @@ import { Contact, useContacts } from "@/hooks/useContacts";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
-  Button, FlatList, Modal, SafeAreaView, StyleSheet,
-  Switch, Text, TextInput, TouchableOpacity, View
+  Button,
+  FlatList,
+  Modal,
+  SafeAreaView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from "react-native";
 
 export default function ContactListScreen() {
-  const { contacts, addContact, editContact, toggleFavorite, deleteContact } = useContacts();
+  const {
+    contacts,
+    addContact,
+    editContact,
+    toggleFavorite,
+    deleteContact,
+    importContacts,
+    searchContacts,
+    loading,
+    error
+  } = useContacts();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
@@ -18,10 +35,6 @@ export default function ContactListScreen() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-
-  // Loading & error state cho import
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const openModal = (contact?: Contact) => {
     if (contact) {
@@ -51,51 +64,19 @@ export default function ContactListScreen() {
     setEmail("");
   };
 
-  // Import contacts từ API
-  const importContacts = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("https://jsonplaceholder.typicode.com/users"); // thay API thực tế
-      if (!res.ok) throw new Error("Failed to fetch contacts");
-      const data: { name: string; phone: string; email: string }[] = await res.json();
-
-      let imported = 0;
-      data.forEach(c => {
-        // Kiểm tra trùng phone
-        if (c.phone && !contacts.some(existing => existing.phone === c.phone)) {
-          addContact(c.name, c.phone, c.email);
-          imported++;
-        }
-      });
-
-      Alert.alert("Import thành công", `Đã thêm ${imported} liên hệ mới.`);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const filteredContacts = useMemo(() => {
-    return contacts.filter(c => {
-      const matchesSearch =
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.phone.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesFavorite = !showFavoritesOnly || c.favorite === 1;
-      return matchesSearch && matchesFavorite;
-    });
-  }, [contacts, searchQuery, showFavoritesOnly]);
+    return searchContacts(searchQuery, showFavoritesOnly);
+  }, [contacts, searchQuery, showFavoritesOnly, searchContacts]);
 
   const renderItem = ({ item }: { item: Contact }) => (
     <View style={styles.item}>
       <View style={{ flex: 1 }}>
-        <Text style={styles.name}>{item.name}</Text>
-        {item.phone ? (
-          <Text style={styles.phone}>{item.phone}</Text>
-        ) : (
-          <Text style={styles.phoneEmpty}>Không có số điện thoại</Text>
-        )}
+        <Text style={[styles.name, item.favorite ? { color: "#f5c518" } : {}]}>
+          {item.name} {item.favorite ? "★" : ""}
+        </Text>
+        <Text style={item.phone ? styles.phone : styles.phoneEmpty}>
+          {item.phone || "Không có số điện thoại"}
+        </Text>
         {item.email ? <Text style={styles.phone}>{item.email}</Text> : null}
       </View>
 
@@ -138,8 +119,11 @@ export default function ContactListScreen() {
           <Text style={{ marginLeft: 8 }}>Chỉ hiển thị yêu thích</Text>
         </View>
 
-        {/* Nút Import API */}
-        <Button title="Import từ API" onPress={importContacts} disabled={loading} />
+        <Button
+          title="Import từ API"
+          onPress={() => importContacts("https://jsonplaceholder.typicode.com/users")}
+          disabled={loading}
+        />
 
         {loading && <ActivityIndicator size="small" color="#007bff" style={{ marginTop: 8 }} />}
         {error && <Text style={{ color: "red", marginTop: 8 }}>{error}</Text>}
@@ -149,7 +133,9 @@ export default function ContactListScreen() {
         </TouchableOpacity>
 
         {filteredContacts.length === 0 ? (
-          <Text style={styles.empty}>Không tìm thấy liên hệ nào.</Text>
+          <View style={styles.emptyContainer}>
+            <Text style={styles.empty}>Không tìm thấy liên hệ nào.</Text>
+          </View>
         ) : (
           <FlatList
             data={filteredContacts}
@@ -158,7 +144,6 @@ export default function ContactListScreen() {
           />
         )}
 
-        {/* Modal thêm/sửa */}
         <Modal
           visible={modalVisible}
           animationType="slide"
@@ -190,7 +175,8 @@ export default function ContactListScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: "#fff" },
   header: { fontSize: 28, fontWeight: "bold", marginBottom: 16 },
-  empty: { textAlign: "center", marginTop: 50, fontSize: 18, opacity: 0.5 },
+  emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  empty: { textAlign: "center", fontSize: 18, opacity: 0.5 },
   item: { flexDirection: "row", padding: 14, borderBottomColor: "#eee", borderBottomWidth: 1, alignItems: "center" },
   name: { fontSize: 18, fontWeight: "600" },
   phone: { fontSize: 14, color: "#666" },
